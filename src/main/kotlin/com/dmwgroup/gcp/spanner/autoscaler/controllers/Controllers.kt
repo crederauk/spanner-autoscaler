@@ -39,7 +39,7 @@ class CheckController(
     @PostMapping("/check")
     fun latestMetrics(): ResponseEntity<String> {
         spannerScaler.performApplicationCheck()
-        return ResponseEntity.ok().body(null)
+        return ResponseEntity.noContent().build()
     }
 }
 

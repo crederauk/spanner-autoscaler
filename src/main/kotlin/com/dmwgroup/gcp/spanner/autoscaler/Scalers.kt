@@ -15,6 +15,7 @@ import com.dmwgroup.gcp.spanner.autoscaler.repositories.PollingEventRepository
 import com.dmwgroup.gcp.spanner.autoscaler.repositories.ScalingEventRepository
 import com.dmwgroup.gcp.spanner.autoscaler.util.generateSpannerInstanceUUID
 import com.google.auth.oauth2.GoogleCredentials
+import com.google.cloud.spanner.admin.instance.v1.InstanceAdminClient
 import com.google.gson.GsonBuilder
 import com.google.protobuf.FieldMask
 import com.google.spanner.admin.instance.v1.Instance
@@ -56,7 +57,7 @@ class SpannerScaler(
     private fun setSpannerNodes(projectId: String, instanceId: String, nodes: Int):
         Either<Exception, Instance> =
         try {
-            com.google.cloud.spanner.admin.instance.v1.InstanceAdminClient.create().use { instanceAdmin ->
+            InstanceAdminClient.create().use { instanceAdmin ->
                 log.info("${projectId}/${instanceId}: Scaling Spanner instance to ${nodes} nodes.")
                 val operationalResult = instanceAdmin.updateInstanceAsync(
                     Instance.newBuilder()
@@ -84,7 +85,7 @@ class SpannerScaler(
     fun scaleInstance(action: ScalingAction) {
         when (action) {
             is ScalingAction.SetNodes -> {
-                com.google.cloud.spanner.admin.instance.v1.InstanceAdminClient.create().use { instanceAdmin ->
+                InstanceAdminClient.create().use { instanceAdmin ->
                     instanceAdmin.getInstance(InstanceName.of(action.projectId, action.instanceId)).let { instance ->
                         val instanceUUID = generateSpannerInstanceUUID(action.projectId, action.instanceId)
                         // Ensure that no actions are taken if a recent scaling event has taken place

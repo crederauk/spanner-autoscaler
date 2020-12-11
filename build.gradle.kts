@@ -81,4 +81,19 @@ jib {
     from {
         image = "gcr.io/distroless/java:11"
     }
+    to {
+        image = "docker.pkg.github.com/dmwgroup/spanner-autoscaler/spanner-autoscaler"
+        tags = getAdditionalDockerTags()
+    }
+}
+
+fun getAdditionalDockerTags(): Set<String> {
+    val tags = mutableListOf<String>()
+    var tag = ""
+    project.version.toString().split(".").forEach {
+        tags.add("$tag$it")
+        tag += "$it."
+    }
+    println("Inferred Docker tags: $tags")
+    return tags.toSet()
 }

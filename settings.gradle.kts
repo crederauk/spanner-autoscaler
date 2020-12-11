@@ -1,1 +1,1 @@
-rootProject.name = "autoscaler"
+rootProject.name = "spanner-autoscaler"
