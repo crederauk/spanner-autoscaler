@@ -1,8 +1,11 @@
 # Spanner Autoscaler
 
----
-
 A web application that provides autoscaling capability for nodes in Google Cloud Spanner instances.
+
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/dmwgroup/spanner-autoscaler/Build)
+![GitHub](https://img.shields.io/github/license/dmwgroup/spanner-autoscaler)
+
+## Description
 
 A background task will scale nodes up or down according to one of the following strategies:
 1. Instance CPU utilization, obtained from Cloud Monitoring. 
