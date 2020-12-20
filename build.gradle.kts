@@ -26,9 +26,9 @@ repositories {
 }
 
 extra["springCloudVersion"] = "Hoxton.SR8"
-extra["testcontainersVersion"] = "1.14.3"
 
 dependencies {
+    implementation(platform("org.testcontainers:testcontainers-bom:1.15.1"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -51,12 +51,12 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:junit-jupiter:1.15.1")
+    testImplementation("org.testcontainers:gcloud:1.15.1")
 }
 
 dependencyManagement {
     imports {
-        mavenBom("org.testcontainers:testcontainers-bom:${property("testcontainersVersion")}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
     }
 }

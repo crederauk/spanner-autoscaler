@@ -21,7 +21,7 @@ The following endpoints are provide:
 ## Building
 JAR:
 ```
-./gradlew build`
+./gradlew build
 ```
 Docker image:
 ```
@@ -33,8 +33,9 @@ Docker image:
 You will need to install and authenticate using the Google Cloud SDK, as described [here](https://github.com/googleapis/java-spanner/tree/v1.61.0#getting-started).
 
 The following values must be specified using one of the [Spring Boot configuration mechanisms](https://docs.spring.io/spring-boot/docs/current/reference/html/spring-boot-features.html#boot-features-external-config):
-- `monitoringProjectId`: A Google Cloud project ID.
-- `balancedScalers` or `cronScalers`: At least one list of Spanner instance IDs.
+- `application.monitoringProjectId`: A Google Cloud project ID.
+- `application.balancedScalers` or `application.cronScalers`: At least one list of Spanner instance IDs.
+- `application.check-interval-duration` (if using CRON scheduling)
 
 ### Run
 JAR:

@@ -1,0 +1,21 @@
+application:
+  check-interval-duration: 1h
+  scaleUpRebalanceDuration: 0s
+  scaleDownRebalanceDuration: 0s
+  monitoringProjectId: test-project-id
+  cronScalers:
+    - instance:
+        projectId: test-project-id
+        instanceId: test-instance-id
+        minNodes: 2
+        maxNodes: 3
+        maxCpuUtilisation: 0
+      schedules:
+        - cronExpression: "* * * * * *"
+          nodes: 2
+spring:
+  cloud:
+    gcp:
+      spanner:
+        emulator:
+          enabled: true
