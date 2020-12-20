@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("org.ajoberstar.reckon") version "0.13.0"
     id("org.springframework.boot") version "2.3.3.RELEASE"
     id("io.spring.dependency-management") version "1.0.10.RELEASE"
     id("com.google.cloud.tools.jib") version "2.5.0"
@@ -58,6 +59,16 @@ dependencyManagement {
         mavenBom("org.testcontainers:testcontainers-bom:${property("testcontainersVersion")}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
     }
+}
+
+reckon {
+    scopeFromProp()
+    stageFromProp("final", "hotfix")
+}
+
+// Make sure the project is in a fit state before tagging
+subprojects.forEach {
+    tasks["reckonTagCreate"].dependsOn("${it.name}:check")
 }
 
 tasks.withType<Test> {
