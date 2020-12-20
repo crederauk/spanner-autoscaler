@@ -24,7 +24,6 @@ import kong.unirest.Unirest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Scope
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.scheduling.support.CronTrigger
 import org.springframework.stereotype.Component
@@ -55,7 +54,7 @@ class SpannerScaler(
      * Add new nodes to an existing Spanner instance, returning an exception if there's an error.
      */
     private fun setSpannerNodes(projectId: String, instanceId: String, nodes: Int):
-        Either<Exception, Instance> =
+            Either<Exception, Instance> =
         try {
             InstanceAdminClient.create().use { instanceAdmin ->
                 log.info("${projectId}/${instanceId}: Scaling Spanner instance to ${nodes} nodes.")
@@ -92,13 +91,21 @@ class SpannerScaler(
                         scalingEventRepository.latestScalingEvent(instanceUUID)?.let { lastScalingEvent ->
 
                             // Check for scale up rebalance time
-                            if (Duration.between(lastScalingEvent.eventTimestamp, Instant.now()) <= configuration.scaleUpRebalanceDuration && instance.nodeCount < action.nodes) {
+                            if (Duration.between(
+                                    lastScalingEvent.eventTimestamp,
+                                    Instant.now()
+                                ) <= configuration.scaleUpRebalanceDuration && instance.nodeCount < action.nodes
+                            ) {
                                 log.info("${action.projectId}/${action.instanceId}: Last scale up event was at ${lastScalingEvent.eventTimestamp}, less than ${configuration.scaleUpRebalanceDuration} ago. No scaling action taken.")
                                 return
                             }
 
                             // Check for scale down rebalance time
-                            if (Duration.between(lastScalingEvent.eventTimestamp, Instant.now()) <= configuration.scaleDownRebalanceDuration && instance.nodeCount > action.nodes) {
+                            if (Duration.between(
+                                    lastScalingEvent.eventTimestamp,
+                                    Instant.now()
+                                ) <= configuration.scaleDownRebalanceDuration && instance.nodeCount > action.nodes
+                            ) {
                                 log.info("${action.projectId}/${action.instanceId}: Last scale down event was at ${lastScalingEvent.eventTimestamp}, less than ${configuration.scaleDownRebalanceDuration} ago. No scaling action taken.")
                                 return
                             }
@@ -109,20 +116,23 @@ class SpannerScaler(
                             log.info("${action.projectId}/${action.instanceId}: Current node count the same as recommendation (${instance.nodeCount} nodes). Not scaling action taken.")
                         } else {
 
-                            when (val updatedInstance = setSpannerNodes(action.projectId, action.instanceId, action.nodes)) {
+                            when (val updatedInstance =
+                                setSpannerNodes(action.projectId, action.instanceId, action.nodes)) {
                                 is Either.Left -> {
                                     log.info("${action.projectId}/${action.instanceId}: Error updating Spanner nodes: ${updatedInstance.a.message}")
                                 }
                                 is Either.Right -> {
                                     // Persist the record of the scaling event
-                                    scalingEventRepository.save(ScalingEvent(
-                                        instanceId = instanceUUID,
-                                        scalingEventId = UUID.randomUUID(),
-                                        eventTimestamp = Instant.now(),
-                                        action = gson.toJson(action),
-                                        nodesBefore = instance.nodeCount,
-                                        nodesAfter = updatedInstance.b.nodeCount
-                                    ))
+                                    scalingEventRepository.save(
+                                        ScalingEvent(
+                                            instanceId = instanceUUID,
+                                            scalingEventId = UUID.randomUUID(),
+                                            eventTimestamp = Instant.now(),
+                                            action = gson.toJson(action),
+                                            nodesBefore = instance.nodeCount,
+                                            nodesAfter = updatedInstance.b.nodeCount
+                                        )
+                                    )
                                 }
                             }
                         }
@@ -155,53 +165,59 @@ class SpannerScaler(
 
         // Persist logging information
         if (!instanceRepository.existsById(instanceUUID)) {
-            instanceRepository.save(com.dmwgroup.gcp.spanner.autoscaler.dto.Instance(
-                instanceUUID, metrics.projectId, metrics.instanceId
-            ))
+            instanceRepository.save(
+                com.dmwgroup.gcp.spanner.autoscaler.dto.Instance(
+                    instanceUUID, metrics.projectId, metrics.instanceId
+                )
+            )
         }
 
-        pollingEventRepository.save(PollingEvent(
-            instanceUUID,
-            UUID.randomUUID(),
-            metrics.timestamp,
-            gson.toJson(metrics)
-        ))
+        pollingEventRepository.save(
+            PollingEvent(
+                instanceUUID,
+                UUID.randomUUID(),
+                metrics.timestamp,
+                gson.toJson(metrics)
+            )
+        )
     }
 
     /**
      * Perform a check to retrieve Spanner monitoring metrics from Cloud Monitoring and obtain scaling recommendations
      * for each Spanner instance found in the configuration file.
      */
-    @Scheduled(fixedRateString = "#{T(org.springframework.boot.convert.DurationStyle).detectAndParse('\${application.check-interval-duration}')}")
     @Transactional
     fun performApplicationCheck() {
         log.info("Scaling check starting: ${Instant.now()}...")
-        SpannerMetricsRetriever(configuration.monitoringProjectId, configuration.metricAggregationDuration).latestMetrics().let {
-            when (it) {
-                is Either.Left -> log.info("Could not retrieve cloud monitoring metrics: ${it.a}")
-                is Either.Right ->
-                    it.b.forEach { metrics ->
+        configuration.monitoringProjectId?.let { monitoringProjectId ->
+            SpannerMetricsRetriever(monitoringProjectId, configuration.metricAggregationDuration).latestMetrics().let {
+                when (it) {
+                    is Either.Left -> log.info("Could not retrieve cloud monitoring metrics: ${it.a}")
+                    is Either.Right ->
+                        it.b.forEach { metrics ->
 
-                        log.info("${metrics.projectId}/${metrics.instanceId}: Metrics found for instance ($metrics)")
-                        logPollingEvent(metrics)
+                            log.info("${metrics.projectId}/${metrics.instanceId}: Metrics found for instance ($metrics)")
+                            logPollingEvent(metrics)
 
-                        configuration.balancedScalers.filter { scaler: ScalingStrategy.BalancedScalingStrategy ->
-                            scaler.instance.projectId == metrics.projectId && scaler.instance.instanceId == metrics.instanceId
-                        }.map { scaler ->
-                            when (val recommendation = scaler.scalingRecommendation(metrics)) {
-                                is Either.Right -> {
-                                    log.info("${metrics.projectId}/${metrics.instanceId}: Scaler found for instance")
-                                    log.info("${metrics.projectId}/${metrics.instanceId}: Scaler recommendation is ${recommendation.b}.")
-                                    scaleInstance(action = recommendation.b)
-                                }
-                                is Either.Left -> {
-                                    log.info("Error retrieving recommendations: ${recommendation.a}")
+                            configuration.balancedScalers.filter { scaler: ScalingStrategy.BalancedScalingStrategy ->
+                                scaler.instance.projectId == metrics.projectId && scaler.instance.instanceId == metrics.instanceId
+                            }.map { scaler ->
+                                when (val recommendation = scaler.scalingRecommendation(metrics)) {
+                                    is Either.Right -> {
+                                        log.info("${metrics.projectId}/${metrics.instanceId}: Scaler found for instance")
+                                        log.info("${metrics.projectId}/${metrics.instanceId}: Scaler recommendation is ${recommendation.b}.")
+                                        scaleInstance(action = recommendation.b)
+                                    }
+                                    is Either.Left -> {
+                                        log.info("Error retrieving recommendations: ${recommendation.a}")
+                                    }
                                 }
                             }
                         }
-                    }
+                }
             }
-        }
+        } ?: throw IllegalStateException("Cannot retrieve metrics without specifying project from which to retrieve them. " +
+                "Ensure the application.monitoringProjectId property is set.")
     }
 
 }
@@ -216,8 +232,10 @@ class SpannerMetricsRetriever(
     private val gson = GsonBuilder().create()
 
     private val credentials: GoogleCredentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(" https://www.googleapis.com/auth/monitoring",
-            "https://www.googleapis.com/auth/monitoring.read")
+        .createScoped(
+            " https://www.googleapis.com/auth/monitoring",
+            "https://www.googleapis.com/auth/monitoring.read"
+        )
 
     private val metricsQuery = """
         {
@@ -326,7 +344,8 @@ sealed class ScalingStrategy(
     /**
      * Minimum number of nodes required for storage utilisation.
      */
-    fun minStorageNodes(usedBytes: Double) = Math.ceil(usedBytes / (2000000000 / 100 * instance.maxStorageUtilisation)).toInt()
+    fun minStorageNodes(usedBytes: Double) =
+        Math.ceil(usedBytes / (2000000000 / 100 * instance.maxStorageUtilisation)).toInt()
 
     /**
      * Minimum number of nodes required for session utilisation.
@@ -336,12 +355,14 @@ sealed class ScalingStrategy(
     /**
      * Recommend a scaling action given a set of instance metrics.
      */
-    open fun scalingRecommendation(metrics: InstanceMetrics): Either<String, ScalingAction> = Either.right(ScalingAction.NoChange(metrics.projectId, metrics.instanceId))
+    open fun scalingRecommendation(metrics: InstanceMetrics): Either<String, ScalingAction> =
+        Either.right(ScalingAction.NoChange(metrics.projectId, metrics.instanceId))
 
     /**
      * Recommend a scaling action given a set of instance metrics.
      */
-    open fun scalingRecommendation(): Either<String, ScalingAction> = Either.right(ScalingAction.NoChange(instance.projectId, instance.instanceId))
+    open fun scalingRecommendation(): Either<String, ScalingAction> =
+        Either.right(ScalingAction.NoChange(instance.projectId, instance.instanceId))
 
     /**
      * Scaling strategy that takes into account CPU, storage and session utilisation, aiming to keep the instance between
@@ -366,7 +387,10 @@ sealed class ScalingStrategy(
             // If average CPU utilisation is too high, increase the number of nodes
             return when {
                 metrics.meanCpuUtilisation > instance.maxCpuUtilisation -> {
-                    val targetNodes = listOf(Math.ceil(instance.targetCpuUtilisation / cpuUtilisationPerNode).toInt(), minimumNodes).max()
+                    val targetNodes = listOf(
+                        Math.ceil(instance.targetCpuUtilisation / cpuUtilisationPerNode).toInt(),
+                        minimumNodes
+                    ).max()
                     log.info("${metrics.projectId}/${metrics.instanceId}: Current CPU utilisation ${metrics.meanCpuUtilisation} greater than maximum CPU allowed ${instance.maxCpuUtilisation}.")
                     log.info("${metrics.projectId}/${metrics.instanceId}: Setting new target nodes to be $targetNodes.")
                     Either.right(ScalingAction.SetNodes(metrics.projectId, metrics.instanceId, targetNodes!!))
@@ -377,7 +401,8 @@ sealed class ScalingStrategy(
                     Either.right(ScalingAction.NoChange(metrics.projectId, metrics.instanceId))
                 }
                 metrics.meanCpuUtilisation < instance.minCpuUtilisation -> {
-                    val targetNodes = listOf((metrics.meanCpuUtilisation / cpuUtilisationPerNode).toInt(), minimumNodes).max()
+                    val targetNodes =
+                        listOf((metrics.meanCpuUtilisation / cpuUtilisationPerNode).toInt(), minimumNodes).max()
                     log.info("${metrics.projectId}/${metrics.instanceId}: Current CPU utilisation ${metrics.meanCpuUtilisation} less than minimum CPU allowed of ${instance.minCpuUtilisation}.")
                     Either.right(ScalingAction.SetNodes(metrics.projectId, metrics.instanceId, targetNodes!!))
                 }
@@ -392,7 +417,8 @@ sealed class ScalingStrategy(
     /**
      * Scale a Spanner instance with multiple Cron expressions.
      */
-    class CronScalingStrategy(override val instance: InstanceInformation, val schedules: List<CronSchedule>) : ScalingStrategy(instance) {
+    class CronScalingStrategy(override val instance: InstanceInformation, val schedules: List<CronSchedule>) :
+        ScalingStrategy(instance) {
 
         data class CronSchedule(
             val cronExpression: String,
@@ -401,7 +427,10 @@ sealed class ScalingStrategy(
 
         fun scheduleTriggers(taskScheduler: ThreadPoolTaskScheduler, spannerScaler: SpannerScaler) {
             schedules.forEach { schedule ->
-                taskScheduler.schedule(CronTriggerScheduler(this.instance, schedule, spannerScaler), CronTrigger(schedule.cronExpression))
+                taskScheduler.schedule(
+                    CronTriggerScheduler(this.instance, schedule, spannerScaler),
+                    CronTrigger(schedule.cronExpression)
+                )
             }
         }
 
@@ -494,8 +523,10 @@ data class TimeSeriesQueryResponse(
 /**
  * Scheduler for a Cron trigger, running in its own thread.
  */
-class CronTriggerScheduler(val instance: InstanceInformation, val schedule: ScalingStrategy.CronScalingStrategy.CronSchedule,
-                           val scaler: SpannerScaler) : Runnable {
+class CronTriggerScheduler(
+    val instance: InstanceInformation, val schedule: ScalingStrategy.CronScalingStrategy.CronSchedule,
+    val scaler: SpannerScaler
+) : Runnable {
     private val log: Logger = LoggerFactory.getLogger(CronTriggerScheduler::class.java)
 
     /**

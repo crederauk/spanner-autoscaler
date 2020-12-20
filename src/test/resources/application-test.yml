@@ -1,8 +1,6 @@
 application:
-  check-interval-duration: 1h
   scaleUpRebalanceDuration: 0s
   scaleDownRebalanceDuration: 0s
-  monitoringProjectId: test-project-id
   cronScalers:
     - instance:
         projectId: test-project-id
@@ -17,5 +15,6 @@ spring:
   cloud:
     gcp:
       spanner:
+        database: test-scaling-events-db
         emulator:
           enabled: true

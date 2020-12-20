@@ -11,6 +11,8 @@ A background task will scale nodes up or down according to one of the following 
 1. Instance CPU utilization, obtained from Cloud Monitoring. 
 1. A schedule, in CRON format.
 
+Scaling events are recorded in a Spanner database.
+
 For each of the above strategies, this application must be configured with a list of instances that will be scaled according to that strategy. `AppConfiguration` contains all possible configuration options, which can be overridden according to the usual Spring Boot mechanism.
 
 The following endpoints are provide:
@@ -32,15 +34,17 @@ Docker image:
 ### Prerequisites
 You will need to install and authenticate using the Google Cloud SDK, as described [here](https://github.com/googleapis/java-spanner/tree/v1.61.0#getting-started).
 
+You will need to create a database for scaling events that contains the database objects specified in `src/main/resources/sql/schema.sql`. This can be located on the instance that is being monitored. 
+
 The following values must be specified using one of the [Spring Boot configuration mechanisms](https://docs.spring.io/spring-boot/docs/current/reference/html/spring-boot-features.html#boot-features-external-config):
-- `application.monitoringProjectId`: A Google Cloud project ID.
-- `application.balancedScalers` or `application.cronScalers`: At least one list of Spanner instance IDs.
-- `application.check-interval-duration` (if using CRON scheduling)
+- `application.balancedScalers` or `application.cronScalers`: At least one of these must be specified with list of Spanner instance IDs.
+- `application.monitoringProjectId`: A Google Cloud project ID. Required if you have specified `application.balancedScalers`.
+- `spring.cloud.gcp.spanner.database`: the name of the scaling events database you created.
 
 ### Run
 JAR:
 ```
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp-credentials.json java -jar build/libs/autoscaler-*.jar --application.monitoringProjectId=xxxx
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp-credentials.json java -jar build/libs/autoscaler-*.jar
 ```
 
 ## Further Reading

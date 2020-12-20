@@ -12,9 +12,7 @@ import com.google.cloud.spanner.InstanceConfigId
 import com.google.cloud.spanner.InstanceId
 import com.google.cloud.spanner.InstanceInfo
 import com.google.cloud.spanner.Spanner
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -36,6 +34,7 @@ class AutoscalerTest(@Autowired val spanner: Spanner) {
     companion object {
         const val PROJECT_ID = "test-project-id"
         const val INSTANCE_ID = "test-instance-id"
+        const val DATABASE_ID = "test-scaling-events-db"
 
         @JvmStatic
         @Container
@@ -71,6 +70,9 @@ class AutoscalerTest(@Autowired val spanner: Spanner) {
                 .setInstanceConfigId(instanceConfigId)
                 .build()
         ).get()
+
+        // TODO populate with schema.sql
+        spanner.databaseAdminClient.createDatabase(INSTANCE_ID, DATABASE_ID, listOf())
     }
 
     @AfterEach
@@ -79,7 +81,11 @@ class AutoscalerTest(@Autowired val spanner: Spanner) {
     }
 
     @Test
+    @Timeout(5)
+    @Disabled
     fun `should scale up from 1 to 2 nodes`() {
-        // TODO
+        while (spanner.instanceAdminClient.getInstance(INSTANCE_ID).nodeCount < 2) {
+            Thread.sleep(250)
+        }
     }
 }
