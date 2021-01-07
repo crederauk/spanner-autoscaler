@@ -1,0 +1,20 @@
+application:
+  scaleUpRebalanceDuration: 0s
+  scaleDownRebalanceDuration: 0s
+  cronScalers:
+    - instance:
+        projectId: test-project-id
+        instanceId: test-instance-id
+        minNodes: 2
+        maxNodes: 3
+        maxCpuUtilisation: 0
+      schedules:
+        - cronExpression: "* * * * * *"
+          nodes: 2
+spring:
+  cloud:
+    gcp:
+      spanner:
+        database: test-scaling-events-db
+        emulator:
+          enabled: true

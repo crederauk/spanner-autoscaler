@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("org.ajoberstar.reckon") version "0.13.0"
     id("org.springframework.boot") version "2.3.3.RELEASE"
     id("io.spring.dependency-management") version "1.0.10.RELEASE"
     id("com.google.cloud.tools.jib") version "2.5.0"
@@ -25,9 +26,9 @@ repositories {
 }
 
 extra["springCloudVersion"] = "Hoxton.SR8"
-extra["testcontainersVersion"] = "1.14.3"
 
 dependencies {
+    implementation(platform("org.testcontainers:testcontainers-bom:1.15.1"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -50,14 +51,24 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:junit-jupiter:1.15.1")
+    testImplementation("org.testcontainers:gcloud:1.15.1")
 }
 
 dependencyManagement {
     imports {
-        mavenBom("org.testcontainers:testcontainers-bom:${property("testcontainersVersion")}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
     }
+}
+
+reckon {
+    scopeFromProp()
+    stageFromProp("final", "hotfix")
+}
+
+// Make sure the project is in a fit state before tagging
+subprojects.forEach {
+    tasks["reckonTagCreate"].dependsOn("${it.name}:check")
 }
 
 tasks.withType<Test> {
@@ -81,4 +92,19 @@ jib {
     from {
         image = "gcr.io/distroless/java:11"
     }
+    to {
+        image = "docker.pkg.github.com/dmwgroup/spanner-autoscaler/spanner-autoscaler"
+        tags = getAdditionalDockerTags()
+    }
+}
+
+fun getAdditionalDockerTags(): Set<String> {
+    val tags = mutableListOf<String>()
+    var tag = ""
+    project.version.toString().split(".").forEach {
+        tags.add("$tag$it")
+        tag += "$it."
+    }
+    println("Inferred Docker tags: $tags")
+    return tags.toSet()
 }

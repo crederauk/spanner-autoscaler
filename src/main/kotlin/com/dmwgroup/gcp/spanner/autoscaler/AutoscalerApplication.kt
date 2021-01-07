@@ -15,10 +15,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.cloud.gcp.data.spanner.repository.config.EnableSpannerRepositories
 import org.springframework.context.ApplicationListener
+import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
+import org.springframework.scheduling.annotation.SchedulingConfigurer
+import org.springframework.scheduling.config.ScheduledTaskRegistrar
 
 @SpringBootApplication
-@EnableScheduling
 @EnableSpannerRepositories
 @EnableConfigurationProperties(AppConfiguration::class)
 class SpannerAutoscalerApplication(
@@ -33,6 +35,23 @@ class SpannerAutoscalerApplication(
         spannerScaler.scheduleCronScalers()
     }
 
+}
+
+@Configuration
+@EnableScheduling
+class SchedulingConfiguration(
+    private val configuration: AppConfiguration,
+    private val spannerScaler: SpannerScaler
+) : SchedulingConfigurer {
+
+    override fun configureTasks(taskRegistrar: ScheduledTaskRegistrar) {
+        if (configuration.balancedScalers.isNotEmpty()) {
+            taskRegistrar.addFixedRateTask(
+                { spannerScaler.performApplicationCheck() },
+                configuration.checkInterval.toMillis()
+            )
+        }
+    }
 }
 
 /**

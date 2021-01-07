@@ -1,3 +1,0 @@
-application:
-  check-interval: 30s
-  metric-aggregation-duration: 5m

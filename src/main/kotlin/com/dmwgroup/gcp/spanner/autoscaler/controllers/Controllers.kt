@@ -23,23 +23,30 @@ import org.springframework.web.server.ResponseStatusException
 class MetricsController(val configuration: AppConfiguration) {
 
     @GetMapping("/metrics/latest")
-    fun latestMetrics(): ResponseEntity<List<InstanceMetrics>> =
-        when (val metrics = SpannerMetricsRetriever(configuration.monitoringProjectId,
-            configuration.metricAggregationDuration).latestMetrics()) {
-            is Either.Left -> throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, metrics.a)
-            is Either.Right -> ResponseEntity.ok(metrics.b)
-        }
+    fun latestMetrics(): ResponseEntity<List<InstanceMetrics>> {
+        configuration.monitoringProjectId?.let { monitoringProjectId ->
+            when (val metrics = SpannerMetricsRetriever(monitoringProjectId, configuration.metricAggregationDuration)
+                .latestMetrics()) {
+                is Either.Left -> throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, metrics.a)
+                is Either.Right -> return ResponseEntity.ok(metrics.b)
+            }
+        } ?: throw ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR, "Cannot retrieve metrics without specifying project from which to " +
+                    "retrieve them. Ensure the application.monitoringProjectId property is set."
+        )
+    }
 }
 
 @RestController
 class CheckController(
     val configuration: AppConfiguration,
-    val spannerScaler: SpannerScaler) {
+    val spannerScaler: SpannerScaler
+) {
 
     @PostMapping("/check")
     fun latestMetrics(): ResponseEntity<String> {
         spannerScaler.performApplicationCheck()
-        return ResponseEntity.ok().body(null)
+        return ResponseEntity.noContent().build()
     }
 }
 

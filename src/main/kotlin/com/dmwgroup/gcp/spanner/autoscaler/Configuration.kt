@@ -1,3 +1,9 @@
+/*
+ * Copyright 2020 Andrew James <andrew.james@dmwgroup.co.uk> and DMW Group Ltd.
+ *
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE.txt', which is part of this source code package.
+ */
 package com.dmwgroup.gcp.spanner.autoscaler
 
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -8,17 +14,15 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.validation.annotation.Validated
 import java.time.Duration
 import javax.validation.constraints.Min
-import javax.validation.constraints.NotEmpty
 
 @Validated
 @ConstructorBinding
 @ConfigurationProperties(prefix = "application")
 data class AppConfiguration(
     /**
-     * The name of the monitoring project to query using MQL
+     * The name of the project to query for metrics when using the BalancedScaler strategy
      */
-    @NotEmpty
-    val monitoringProjectId: String,
+    val monitoringProjectId: String?,
     /**
      * The number of threads to use when scheduling Cron triggers. The default value is 10, which is the limit for
      * number of simultaneous schedules that can be executed.
@@ -26,7 +30,7 @@ data class AppConfiguration(
     @Min(1)
     val scalerThreadPoolSize: Int = 10,
     /**
-     * The interval between scheduled application metric checks. The default is 5 minutes (5m)
+     * The interval between scheduled application metric checks when using the BalancedScaler strategy. The default is 5 minutes (5m)
      */
     val checkInterval: Duration = Duration.ofMinutes(5),
     /**
